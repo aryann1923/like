@@ -71,7 +71,7 @@ const uploadImage = () =>{
       name: image.image_name,
       type: image.image_type,
     });
-    fetch('http://192.168.123.7:4000/upload_image', {
+    fetch('http://your_laptop_ip_address:4000/upload_image', {
       method: 'POST',
       body: formdata,
       headers: {'Content-Type': 'multipart/form-data'},
