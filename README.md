@@ -1,2 +1,2 @@
-# like
-its regarding the like button
+# how to upload image 
+its regarding uploading an image
