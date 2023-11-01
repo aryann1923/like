@@ -1,9 +1,61 @@
-//this is the pressable button basically the like button
-<Pressable
-  onPress={() => {
-    post_like(post_id);
-  }}
-  style={{
+// LikeButton.js component
+import React, { useState, useEffect } from 'react';
+
+const LikeButton = ({ post_id, userId }) => {
+  const [likeState, setLikeState] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+
+  useEffect(() => {
+    checkLikeStatus();
+  }, [post_id]);
+
+  const checkLikeStatus = async () => {
+    try {
+      const response = await fetch(`http://ip_address:4000/likes?user_id=${userId}&post_id=${post_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLikeState(data.length > 0);
+        setLikeCount(data.length);
+      }
+    } catch (error) {
+      console.error('Error checking like status:', error);
+    }
+  };
+
+  const handleLikeClick = async () => {
+    const likeAction = likeState ? 'likeDelete' : 'likeInsert';
+    try {
+      const response = await fetch(`http://ip_address:4000/${likeAction}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, post_id }),
+      });
+      if (response.ok) {
+        setLikeState(!likeState);
+        setLikeCount(likeCount + (likeState ? -1 : 1));
+      }
+    } catch (error) {
+      console.error(`Error ${likeAction}ing post:`, error);
+    }
+  };
+
+  return (
+    <Pressable
+      onPress={handleLikeClick}
+      style={styles.likeButton}
+    >
+      <FontAwesomeIcon
+        name="thumbs-up"
+        color={likeState ? '#1195DF' : 'gray'}
+        size={20}
+      />
+      <Text>{likeCount}</Text>
+    </Pressable>
+  );
+};
+
+const styles = {
+  likeButton: {
     height: 28,
     width: 90,
     backgroundColor: '#313030',
@@ -12,117 +64,46 @@
     alignItems: 'center',
     flexDirection: 'row',
     marginLeft: 15,
-  }}>
-  <FontAwesomeIcon
-    name={'thumbs-up'}
-    color={likeState.includes(post_id) ? '#1195DF' : 'gray'}
-    size={20}
-  />
-  <Text>{Like_Count}</Text>
-</Pressable>;
-
-//these are the state variable
-const [likeState, setlikeState] = useState([]);
-const [Like_Count, setLikeCount] = useState('');
-
-//this is the like function
-const post_like = Post_id => {
-  const ids = {user_id: userId, post_id: Post_id};
-  fetch('http://ip_address:4000/likes', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(ids),
-  })
-    .then(response => {
-      if (response.ok) {
-        return response.json();
-      }
-    })
-    .then(json => {
-      if (json.length == 0) {
-        setlikeState(prev => {
-          return [...prev, Post_id];
-        });
-        setLikeCount(prev => {
-          return prev + 1;
-        });
-        fetch('http://ip_address:4000/likeInsert', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(ids),
-        });
-      } else {
-        setlikeState(prev => {
-          return prev.filter(item => item !== Post_id);
-        });
-        setLikeCount(prev => {
-          return prev - 1;
-        });
-        fetch('http://ip_address:4000/likeDelete', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(ids),
-        });
-      }
-    });
+  },
 };
 
-//explaination of the above code :
-//ids is basically user_id and post_id which is basically the my id ie.the person who is liking the post and post_id is basically the id of the post i am liking
-//then i create a fetch api to send the ids
-//so the first fetch api check whether a row with the same user_id and post_id exist or not
-//if a row does not exist ,then it updates the like state and increases the like count and the send a fetch api to insert the user id and post id
-//if a row already exists ,then it updated the like state and decreses the count by 1 and then sends a fetch api to delete the row
-
-//below are the api requests in the express server file,the requests are being made to a mysql database
-app.post('/likes', (req, res) => {
-  const {user_id, post_id} = req.body;
-  con.query(
-    'SELECT * from likes where post_id=? and user_id=?',
-    [post_id, user_id],
-    (err, result) => {
+// Create a reusable function for executing SQL queries
+function executeQuery(res, query, params, successMessage) {
+    con.query(query, params, (err, result) => {
       if (err) {
-        console.error('Error retrieving data:', err);
-        res.status(500).send('Error retrieving data');
+        console.error('Error executing query:', err);
+        res.status(500).send('Error executing query');
       } else {
-        console.log('Data retrieved successfully!');
+        console.log(successMessage);
         res.status(200).json(result);
       }
-    },
-  );
-});
-
-app.post('/likeInsert', (req, res) => {
-  const {user_id, post_id} = req.body;
-
-  con.query(
-    'INSERT into likes(post_id,user_id) values(?,?)',
-    [post_id, user_id],
-    (err, result) => {
-      if (err) {
-        console.error('Error retrieving data:', err);
-        res.status(500).send('Error retrieving data');
-      } else {
-        console.log('Data retrieved successfully!');
-        res.status(200).json(result);
-      }
-    },
-  );
-});
-
-app.post('/likeDelete', (req, res) => {
-  const {user_id, post_id} = req.body;
-  con.query(
-    'DELETE FROM likes where post_id =? and user_id = ?',
-    [post_id, user_id],
-    (err, result) => {
-      if (err) {
-        console.error('Error retrieving data:', err);
-        res.status(500).send('Error retrieving data');
-      } else {
-        console.log('Data retrieved successfully!');
-        res.status(200).json(result);
-      }
-    },
-  );
-});
+    });
+  }
+  
+  // Likes Route
+  app.post('/likes', (req, res) => {
+    const { user_id, post_id } = req.body;
+    const query = 'SELECT * from likes where post_id=? and user_id=?';
+    const params = [post_id, user_id];
+    const successMessage = 'Likes data retrieved successfully!';
+    executeQuery(res, query, params, successMessage);
+  });
+  
+  // Like Insert Route
+  app.post('/likeInsert', (req, res) => {
+    const { user_id, post_id } = req.body;
+    const query = 'INSERT into likes(post_id,user_id) values(?,?)';
+    const params = [post_id, user_id];
+    const successMessage = 'Like inserted successfully!';
+    executeQuery(res, query, params, successMessage);
+  });
+  
+  // Like Delete Route
+  app.post('/likeDelete', (req, res) => {
+    const { user_id, post_id } = req.body;
+    const query = 'DELETE FROM likes where post_id =? and user_id = ?';
+    const params = [post_id, user_id];
+    const successMessage = 'Like deleted successfully!';
+    executeQuery(res, query, params, successMessage);
+  });
+  
